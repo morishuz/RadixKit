@@ -22,6 +22,10 @@ inline void radix64_sort_impl(std::span<Record> values, Key key) {
     using KeyType = std::remove_cvref_t<std::invoke_result_t<Key, const Record&>>;
     static_assert(std::is_same_v<KeyType, std::uint32_t> || std::is_same_v<KeyType, std::uint64_t>,
                   "Key must return uint32_t or uint64_t");
+    // 32-bit projections benefit from direct record copies, especially padded
+    // records. Preserve the existing value-load schedule for 64-bit kernels.
+    using scatter_value = std::conditional_t<std::is_same_v<KeyType, std::uint32_t>,
+                                              const Record&, const Record>;
     constexpr unsigned key_bits = sizeof(KeyType) * 8;
     const auto n = values.size();
     if (n < 128 || n > std::numeric_limits<std::uint32_t>::max()) {
@@ -103,13 +107,16 @@ inline void radix64_sort_impl(std::span<Record> values, Key key) {
                         std::copy_n(source + i, 8, destination + pos);
                     } else
                         for (unsigned j = 0; j < 8; ++j) {
-                            const auto value = source[i + j];
+                            scatter_value value = source[i + j];
                             destination[offsets[(key(value) >> shift) & mask]++] = value;
                         }
                 }
         }
         for (; n - i >= 4; i += 4) {
-            const auto a = source[i], b = source[i + 1], c = source[i + 2], d = source[i + 3];
+            // Source and destination are distinct buffers, so source references
+            // remain valid until every record in this group has been scattered.
+            scatter_value a = source[i], b = source[i + 1];
+            scatter_value c = source[i + 2], d = source[i + 3];
             const auto pa = offsets[(key(a) >> shift) & mask]++;
             const auto pb = offsets[(key(b) >> shift) & mask]++;
             const auto pc = offsets[(key(c) >> shift) & mask]++;
@@ -120,7 +127,7 @@ inline void radix64_sort_impl(std::span<Record> values, Key key) {
             destination[pd] = d;
         }
         for (; i < n; ++i) {
-            const auto value = source[i];
+            scatter_value value = source[i];
             destination[offsets[(key(value) >> shift) & mask]++] = value;
         }
         std::swap(source, destination);

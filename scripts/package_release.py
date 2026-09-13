@@ -21,7 +21,7 @@ def main():
         'scripts/summarize_sort.py',
         'scripts/audit_release.py', '.gitignore', '.clang-format')}
     for directory, suffixes in [('include', {'.hpp'}), ('tests', {'.cpp', '.txt'}),
-                                ('examples', {'.cpp'}), ('docs', {'.md', '.csv'}), ('bench', {'.cpp'}),
+                                ('examples', {'.cpp'}), ('docs', {'.md', '.csv', '.patch'}), ('bench', {'.cpp'}),
                                 ('third_party/ska_sort', {'.hpp', '.md', '.txt'})]:
         files.update(p.relative_to(root) for p in (root / directory).rglob('*')
                      if p.is_file() and p.suffix in suffixes)

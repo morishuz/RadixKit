@@ -49,10 +49,10 @@ Times are milliseconds; lower is better.
 
 | Format | RadixKit | Best ska variant¹ | `std::sort` | Speedup vs ska |
 |---|---:|---:|---:|---:|
-| 32-bit keys | 2.645 | 4.236 | 20.861 | **1.60×** |
-| 64-bit keys | 7.231 | 12.643 | 21.637 | **1.75×** |
-| 32-bit keys + 64-bit payloads | 9.040 | 7.444 | 56.855 | **0.82×** |
-| 64-bit keys + 64-bit payloads | 12.400 | 13.590 | 56.333 | **1.10×** |
+| 32-bit keys | 2.637 | 4.271 | 20.823 | **1.62×** |
+| 64-bit keys | 6.552 | 12.477 | 21.921 | **1.90×** |
+| 32-bit keys + 64-bit payloads | 6.225 | 7.146 | 56.954 | **1.15×** |
+| 64-bit keys + 64-bit payloads | 12.364 | 13.608 | 56.436 | **1.10×** |
 
 ¹ The faster of `ska_sort` and `ska_sort_copy` for each row. A speedup below 1
 means RadixKit is slower.
@@ -62,9 +62,9 @@ per seed. Required allocations are included; input copying and correctness check
 are excluded. All outputs were validated.
 
 These results cover one machine and one input distribution. RadixKit requires up
-to O(N) temporary storage, loses to ska on random 32-bit key/value records, and
-loses to `std::sort` on some other distributions. See
-[full results and reproduction details](docs/benchmarks/m1-2026-09-13/README.md)
+to O(N) temporary storage. Performance varies with input size and distribution;
+`std::sort` remains faster on some ordered and duplicate-heavy inputs. See
+[full results and reproduction details](docs/benchmarks/m1-2026-09-13-record-copy/README.md)
 for additional distributions, input sizes and measurement limitations.
 
 ## Integration

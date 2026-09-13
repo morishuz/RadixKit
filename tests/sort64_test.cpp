@@ -2,11 +2,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <initializer_list>
 #include <span>
 #include <radixkit/radixkit.hpp>
 #include <iostream>
 #include <random>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 
 namespace {
@@ -41,6 +43,48 @@ void check(const std::vector<std::uint64_t>& input) {
         std::sort(records.begin(),records.end(),less_pair);
         if(records!=reference)throw std::runtime_error("key/payload association");
         ++checks;
+    }
+}
+
+// Exercise copies from source references with padding, keys after payloads,
+// reference-returning extractors, every active 11-bit digit subset and tail.
+template<class Record, class MakeRecord>
+void check_record32(MakeRecord make_record) {
+    std::mt19937_64 rng(314159);
+    auto get = [](const Record& row) -> const std::uint32_t& { return row.key; };
+    auto less = [&](const Record& a, const Record& b) { return get(a) < get(b); };
+    for (unsigned active = 0; active < 8; ++active) {
+        std::uint32_t mask = 0;
+        for (unsigned digit = 0; digit < 3; ++digit)
+            if (active & (1u << digit))
+                mask |= std::uint32_t(digit == 2 ? 1023 : 2047) << (digit * 11);
+        for (std::size_t tail = 0; tail < 4; ++tail) {
+            const std::size_t n = 132 + tail;
+            std::vector<Record> input;
+            for (std::size_t i = 0; i < n; ++i)
+                input.push_back(make_record(0x81234567u ^ (std::uint32_t(rng()) & mask), i, rng()));
+            auto expected = input;
+            std::sort(expected.begin(), expected.end(), less);
+            for (bool partial : {false, true}) {
+                auto values = input;
+                const auto sorted = partial ? n - 4 : n;
+                if constexpr (std::is_same_v<Record, radixkit::key_value32>) {
+                    if (partial) radixkit::partial_sort(values, sorted);
+                    else radixkit::sort(values);
+                } else {
+                    if (partial) radixkit::partial_sort_by_key(std::span(values), sorted, get);
+                    else radixkit::sort_by_key(std::span(values), get);
+                }
+                for (std::size_t i = 0; i < sorted; ++i)
+                    if (get(values[i]) != get(expected[i]))
+                        throw std::runtime_error("projected uint32 key order");
+                // Every payload field must survive; padding is not compared.
+                std::sort(values.begin(), values.end(),
+                          [](const Record& a, const Record& b) { return a.value < b.value; });
+                if (values != input) throw std::runtime_error("projected uint32 payload preservation");
+                ++checks;
+            }
+        }
     }
 }
 }
@@ -83,6 +127,27 @@ int main() {
         std::sort(records.begin(),records.end(),[](auto& a,auto& b){return a.tag<b.tag;});
         if(records!=expected)return 1;
         ++checks;
+
+        check_record32<radixkit::key_value32>([](std::uint32_t key, std::uint64_t id, std::uint64_t) {
+            return radixkit::key_value32{key, id};
+        });
+        struct Record16 {
+            std::uint64_t value;
+            std::uint32_t key, extra;
+            bool operator==(const Record16&) const = default;
+        };
+        struct alignas(32) Record32 {
+            std::uint64_t value;
+            std::uint32_t key, extra;
+            std::uint64_t left, right;
+            bool operator==(const Record32&) const = default;
+        };
+        check_record32<Record16>([](std::uint32_t key, std::uint64_t id, std::uint64_t payload) {
+            return Record16{id, key, std::uint32_t(payload)};
+        });
+        check_record32<Record32>([](std::uint32_t key, std::uint64_t id, std::uint64_t payload) {
+            return Record32{id, key, std::uint32_t(payload), payload, ~payload};
+        });
         std::cout<<"Passed "<<checks<<" uint64 and record differential checks\n";
     } catch(const std::exception& e) {std::cerr<<e.what()<<'\n';return 1;}
 }

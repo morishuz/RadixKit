@@ -3,8 +3,8 @@
 Benchmarks are optional and never add dependencies to installed RadixKit headers.
 The full-sort runner vendors ska_sort at a fixed revision; there are no downloads.
 
-See the [provisional Apple M1 results](benchmarks/m1-2026-09-13/README.md) for
-measured timings, raw trials and exact reproduction details for the released code.
+See the [provisional Apple M1 results](benchmarks/m1-2026-09-13-record-copy/README.md) for
+measured timings, raw trials and exact source provenance and reproduction details.
 
 ```sh
 cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DRADIXKIT_BUILD_BENCHMARKS=ON
