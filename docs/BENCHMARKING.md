@@ -3,10 +3,14 @@
 Benchmarks are optional and never add dependencies to installed RadixKit headers.
 The full-sort runner vendors ska_sort at a fixed revision; there are no downloads.
 
+See the [provisional Apple M1 results](benchmarks/m1-2026-09-13/README.md) for
+measured timings, raw trials and exact reproduction details for the released code.
+
 ```sh
 cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DRADIXKIT_BUILD_BENCHMARKS=ON
 cmake --build build-bench --target radixkit_sort_bench radixkit_selection_bench --parallel 2
 ./build-bench/radixkit_sort_bench 1000000 7 13579 > build-bench/sort.csv
+python3 scripts/summarize_sort.py build-bench/sort.csv > build-bench/sort-summary.csv
 ./build-bench/radixkit_selection_bench 1000000 > build-bench/selection.csv
 python3 scripts/summarize_selection.py build-bench/selection.csv > build-bench/selection-summary.csv
 ```
@@ -46,6 +50,6 @@ top-k case. Full-count nth/top-k calls are no-ops and must not be ranked by spee
   inputs tend to be warm; these tests do not establish cold-cache or database speedups.
 
 `RADIXKIT_NATIVE_BENCHMARKS=ON` applies `-march=native` to all methods on supported
-compilers. Record this setting and compiler/CPU details with results. No current
-public performance table is presented as universally representative. Earlier
-research informed the algorithms, but each user should reproduce their workload.
+compilers. Record this setting and compiler/CPU details with results. The published
+M1 table is provisional and specific to its measured workloads. Earlier research
+informed the algorithms, but each user should reproduce their workload.

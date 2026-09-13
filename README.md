@@ -40,6 +40,33 @@ RadixKit combines radix kernels with counting, order/duplicate shortcuts and
 bounded heap selection. Plain keys also accept `sort_policy::adaptive`; it can
 help some distributions and regress on others. No universal speedup is claimed.
 
+## Performance — provisional Apple M1 results
+
+Full sorting of **1 million uniformly random elements**, using default
+`radixkit::sort`, [ska_sort](https://github.com/skarupke/ska_sort) and `std::sort`.
+Single-threaded on Apple M1 with Apple Clang 21 (`-O3 -march=native`).
+Times are milliseconds; lower is better.
+
+| Format | RadixKit | Best ska variant¹ | `std::sort` | Speedup vs ska |
+|---|---:|---:|---:|---:|
+| 32-bit keys | 2.645 | 4.236 | 20.861 | **1.60×** |
+| 64-bit keys | 7.231 | 12.643 | 21.637 | **1.75×** |
+| 32-bit keys + 64-bit payloads | 9.040 | 7.444 | 56.855 | **0.82×** |
+| 64-bit keys + 64-bit payloads | 12.400 | 13.590 | 56.333 | **1.10×** |
+
+¹ The faster of `ska_sort` and `ska_sort_copy` for each row. A speedup below 1
+means RadixKit is slower.
+
+Each timing is the median of three per-seed medians, with nine measured repetitions
+per seed. Required allocations are included; input copying and correctness checks
+are excluded. All outputs were validated.
+
+These results cover one machine and one input distribution. RadixKit requires up
+to O(N) temporary storage, loses to ska on random 32-bit key/value records, and
+loses to `std::sort` on some other distributions. See
+[full results and reproduction details](docs/benchmarks/m1-2026-09-13/README.md)
+for additional distributions, input sizes and measurement limitations.
+
 ## Integration
 
 Copy `include/radixkit/` into your include path and retain `LICENSE`, or use CMake:
