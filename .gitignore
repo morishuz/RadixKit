@@ -1,0 +1,12 @@
+/build*/
+/results/
+.DS_Store
+__pycache__/
+*.pyc
+# Local timing outputs; publish selected results explicitly after review.
+/benchmark-info.txt
+/speedups.csv
+/summary.csv
+/timings.csv
+# Private local database experiment, outside the source tree.
+/experiments/duckdb/

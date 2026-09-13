@@ -1,0 +1,3 @@
+@PACKAGE_INIT@
+include("${CMAKE_CURRENT_LIST_DIR}/radixkitTargets.cmake")
+check_required_components(radixkit)

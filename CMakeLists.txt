@@ -1,0 +1,88 @@
+cmake_minimum_required(VERSION 3.20)
+project(radixkit VERSION 0.1.0 LANGUAGES CXX)
+
+set(RADIXKIT_TOP_LEVEL OFF)
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+  set(RADIXKIT_TOP_LEVEL ON)
+endif()
+option(RADIXKIT_BUILD_TESTS "Build library correctness tests" ${RADIXKIT_TOP_LEVEL})
+option(RADIXKIT_BUILD_EXAMPLES "Build the library usage example" ${RADIXKIT_TOP_LEVEL})
+option(RADIXKIT_BUILD_BENCHMARKS "Build benchmark runners and bundled baselines" OFF)
+option(RADIXKIT_BUILD_STRESS_TESTS "Build sustained differential sorting tests" OFF)
+option(RADIXKIT_NATIVE_BENCHMARKS "Tune every benchmark competitor for this CPU" OFF)
+
+add_library(radixkit INTERFACE)
+add_library(radixkit::radixkit ALIAS radixkit)
+include(GNUInstallDirs)
+target_compile_features(radixkit INTERFACE cxx_std_20)
+target_include_directories(radixkit INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
+include(CMakePackageConfigHelpers)
+install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/radixkit)
+install(TARGETS radixkit EXPORT radixkitTargets)
+install(DIRECTORY include/radixkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(EXPORT radixkitTargets NAMESPACE radixkit:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/radixkit)
+configure_package_config_file(cmake/radixkitConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/radixkitConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/radixkit)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/radixkitConfigVersion.cmake
+  VERSION ${PROJECT_VERSION} COMPATIBILITY SameMinorVersion ARCH_INDEPENDENT)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/radixkitConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/radixkitConfigVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/radixkit)
+
+function(radixkit_executable target source)
+  add_executable(${target} ${source})
+  target_link_libraries(${target} PRIVATE radixkit::radixkit)
+  if(MSVC)
+    target_compile_options(${target} PRIVATE /W4)
+  else()
+    target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+  endif()
+endfunction()
+
+if(RADIXKIT_BUILD_TESTS)
+  enable_testing()
+  radixkit_executable(radixkit_api_test tests/api_test.cpp)
+  add_test(NAME radixkit_api_contracts COMMAND radixkit_api_test)
+  radixkit_executable(radixkit_selection_test tests/selection_test.cpp)
+  add_test(NAME radixkit_selection_correctness COMMAND radixkit_selection_test)
+  radixkit_executable(radixkit_topk_test tests/topk_test.cpp)
+  radixkit_executable(radixkit_sort_test tests/sort_test.cpp)
+  radixkit_executable(radixkit_sort64_test tests/sort64_test.cpp)
+  radixkit_executable(radixkit_sort64_adaptive_test tests/sort64_adaptive_test.cpp)
+  radixkit_executable(radixkit_adaptive_policy_test tests/adaptive_policy_test.cpp)
+  add_test(NAME radixkit_topk_correctness COMMAND radixkit_topk_test)
+  add_test(NAME radixkit_sort_correctness COMMAND radixkit_sort_test)
+  add_test(NAME radixkit_sort64_correctness COMMAND radixkit_sort64_test)
+  add_test(NAME radixkit_sort64_adaptive_correctness COMMAND radixkit_sort64_adaptive_test)
+  add_test(NAME radixkit_adaptive_policy_correctness COMMAND radixkit_adaptive_policy_test)
+endif()
+
+if(RADIXKIT_BUILD_EXAMPLES)
+  radixkit_executable(radixkit_example examples/basic.cpp)
+endif()
+
+if(RADIXKIT_BUILD_STRESS_TESTS)
+  radixkit_executable(radixkit_adaptive_stress tests/stress/adaptive_stress.cpp)
+  radixkit_executable(radixkit_allocation_failure_test tests/stress/allocation_failure_test.cpp)
+  radixkit_executable(radixkit_partition_boundary_test tests/stress/partition_boundary_test.cpp)
+  if(RADIXKIT_BUILD_TESTS)
+    add_test(NAME radixkit_stress_smoke COMMAND radixkit_adaptive_stress --cases 1000 --max-size 65537)
+    add_test(NAME radixkit_allocation_failures COMMAND radixkit_allocation_failure_test)
+    add_test(NAME radixkit_partition_boundaries COMMAND radixkit_partition_boundary_test)
+  endif()
+endif()
+
+# Benchmark dependencies are optional and never installed with the library.
+if(RADIXKIT_BUILD_BENCHMARKS)
+  radixkit_executable(radixkit_sort_bench bench/sort_benchmark.cpp)
+  radixkit_executable(radixkit_selection_bench bench/selection_benchmark.cpp)
+  target_include_directories(radixkit_sort_bench SYSTEM PRIVATE third_party/ska_sort)
+  if(RADIXKIT_NATIVE_BENCHMARKS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(radixkit_sort_bench PRIVATE -march=native)
+    target_compile_options(radixkit_selection_bench PRIVATE -march=native)
+  endif()
+endif()
