@@ -14,6 +14,7 @@ def main():
     root = Path(__file__).resolve().parents[1]
     files = {Path(name) for name in (
         'LICENSE', 'README.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md',
+        'assets/radixkit-social.png',
         'CMakeLists.txt', 'cmake/radixkitConfig.cmake.in',
         'scripts/check_package.py', 'scripts/package_release.py',
         'scripts/check_adaptive_mutations.py', 'scripts/summarize_selection.py',

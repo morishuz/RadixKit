@@ -1,4 +1,4 @@
-# RadixKit
+![RadixKit — Integer sorting and selection](assets/radixkit-social.png)
 
 Header-only C++20 sorting and selection for **unsigned 32-bit and 64-bit integers**
 and records with payloads. [MIT licensed](LICENSE); the library depends only on
